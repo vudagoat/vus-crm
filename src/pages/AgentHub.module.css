@@ -500,9 +500,36 @@
   transition: background 0.15s;
 }
 
-.sendBtn:hover {
+.sendBtn:hover:not(:disabled) {
   background: #333;
 }
+
+.sendBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.chatLoadingMsg {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 24px 0;
+  font-style: italic;
+}
+
+.msgThinking {
+  color: var(--text-muted) !important;
+  font-style: italic;
+}
+
+/* Markdown rendered inside Jarvis bubbles */
+.msgBubble p { margin: 0 0 6px; }
+.msgBubble p:last-child { margin-bottom: 0; }
+.msgBubble ul,
+.msgBubble ol { margin: 4px 0 6px 16px; padding: 0; }
+.msgBubble li { margin-bottom: 3px; }
+.msgBubble strong { font-weight: 700; color: var(--text-primary); }
+.msgBubble code { font-size: 12px; background: var(--bg-overlay); padding: 1px 5px; border-radius: 3px; }
 
 /* ── Snapshot grid ── */
 .snapshotGrid {

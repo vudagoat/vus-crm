@@ -1,12 +1,25 @@
 import { useState, useRef, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import { sendToMaster, SUBAGENT_MODEL } from '../lib/masterAgent' // eslint-disable-line no-unused-vars
+// SUBAGENT_MODEL ('claude-haiku-4-5-20251001') is imported here for use when
+// Prospector, Researcher, Copywriter, CRM Agent, and Briefing are wired to the API.
+import { supabase } from '../supabaseClient'
 import styles from './AgentHub.module.css'
+
+// Maps a jarvis_messages DB row to the UI message shape.
+const dbToMsg = (row) => ({
+  id: row.id,
+  role: row.role,
+  name: row.role === 'assistant' ? 'Jarvis' : undefined,
+  text: row.content,
+})
 
 const todayLabel = new Date().toLocaleDateString('en-US', {
   month: 'long', day: 'numeric', year: 'numeric',
 })
 
 const AGENTS = [
-  { id: 1, name: 'Master',     sub: 'Orchestrator',  status: 'running' },
+  { id: 1, name: 'Jarvis',     sub: 'Orchestrator',  status: 'running' },
   { id: 2, name: 'Prospector', sub: 'Lead finder',   status: 'queued'  },
   { id: 3, name: 'Researcher', sub: 'Qualifier',     status: 'idle'    },
   { id: 4, name: 'Copywriter', sub: 'Outreach',      status: 'idle'    },
@@ -25,14 +38,14 @@ const INITIAL_TASKS = [
 ]
 
 const INITIAL_MESSAGES = [
-  { id: 1, role: 'agent', name: 'Master', text: "Good morning! I've reviewed your pipeline and flagged 3 priorities. Prospector is queued to find HVAC leads in Durham. Want me to kick that off?" },
-  { id: 2, role: 'user',  text: 'Yes, go ahead. Also check if the Riverside Electric invoice needs updating.' },
-  { id: 3, role: 'agent', name: 'Master', text: "On it. I've queued the Prospector run and added a task to update the Riverside Electric invoice. I'll notify you when leads start coming in." },
+  { id: 1, role: 'assistant', name: 'Jarvis', text: "Good morning! I've reviewed your pipeline and flagged 3 priorities. Prospector is queued to find HVAC leads in Durham. Want me to kick that off?" },
+  { id: 2, role: 'user',      text: 'Yes, go ahead. Also check if the Riverside Electric invoice needs updating.' },
+  { id: 3, role: 'assistant', name: 'Jarvis', text: "On it. I've queued the Prospector run and added a task to update the Riverside Electric invoice. I'll notify you when leads start coming in." },
 ]
 
 const LOG = [
   { time: '8:06 AM',   agent: 'Prospector', action: 'started — searching Durham HVAC contractors' },
-  { time: '8:05 AM',   agent: 'Master',     action: 'created 2 tasks from chat message' },
+  { time: '8:05 AM',   agent: 'Jarvis',     action: 'created 2 tasks from chat message' },
   { time: '7:48 AM',   agent: 'CRM Agent',  action: 'added 6 leads to Supabase · stage: Lead' },
   { time: '7:41 AM',   agent: 'Researcher', action: 'scored 9 of 15 leads as qualified' },
   { time: '7:30 AM',   agent: 'Prospector', action: 'found 15 plumbers in Greensboro' },
@@ -71,7 +84,24 @@ export default function AgentHub() {
   const [tasks, setTasks] = useState(INITIAL_TASKS)
   const [messages, setMessages] = useState(INITIAL_MESSAGES)
   const [chatInput, setChatInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [chatLoading, setChatLoading] = useState(true)
   const scrollAnchorRef = useRef(null)
+
+  // Load persisted chat history on mount; fall back to hardcoded starters if table is empty.
+  useEffect(() => {
+    async function loadHistory() {
+      const { data, error } = await supabase
+        .from('jarvis_messages')
+        .select('*')
+        .order('created_at', { ascending: true })
+      if (!error && data && data.length > 0) {
+        setMessages(data.map(dbToMsg))
+      }
+      setChatLoading(false)
+    }
+    loadHistory()
+  }, [])
 
   useEffect(() => {
     scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -80,17 +110,49 @@ export default function AgentHub() {
   const toggleTask = (id) =>
     setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, done: !t.done } : t)))
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const text = chatInput.trim()
-    if (!text) return
-    setMessages((m) => [...m, { id: Date.now(), role: 'user', text }])
+    if (!text || isLoading) return
+
+    const thinkingId = Date.now() + 1
+    const userMsg = { id: Date.now(), role: 'user', text }
+    const thinkingMsg = { id: thinkingId, role: 'assistant', name: 'Jarvis', text: 'Jarvis is thinking…', isThinking: true }
+
+    setMessages((m) => [...m, userMsg, thinkingMsg])
     setChatInput('')
-    setTimeout(() => {
-      setMessages((m) => [
-        ...m,
-        { id: Date.now() + 1, role: 'agent', name: 'Master', text: "Got it. I'll look into that and update you shortly." },
-      ])
-    }, 1000)
+    setIsLoading(true)
+
+    // Persist user message (non-blocking on failure — message is already in UI state).
+    supabase.from('jarvis_messages').insert({ role: 'user', content: text })
+
+    // Build API messages — Anthropic requires the first message to be 'user',
+    // so we slice from the first user message in the display history.
+    const combined = [...messages, userMsg].filter((m) => !m.isThinking)
+    const firstUserIdx = combined.findIndex((m) => m.role === 'user')
+    const apiMessages = combined
+      .slice(firstUserIdx)
+      .map((m) => ({ role: m.role, content: m.text }))
+
+    try {
+      const reply = await sendToMaster(apiMessages)
+      setMessages((m) =>
+        m.map((msg) =>
+          msg.id === thinkingId ? { ...msg, text: reply, isThinking: false } : msg
+        )
+      )
+      // Persist Jarvis's reply.
+      supabase.from('jarvis_messages').insert({ role: 'assistant', content: reply })
+    } catch {
+      setMessages((m) =>
+        m.map((msg) =>
+          msg.id === thinkingId
+            ? { ...msg, text: 'Sorry, something went wrong. Please try again.', isThinking: false }
+            : msg
+        )
+      )
+    }
+
+    setIsLoading(false)
   }
 
   return (
@@ -213,7 +275,7 @@ export default function AgentHub() {
                 className={`${styles.tab} ${activeTab === 'chat' ? styles.tabActive : ''}`}
                 onClick={() => setActiveTab('chat')}
               >
-                Chat with Master
+                Jarvis Chat
               </button>
             </div>
             {activeTab === 'tasks' && (
@@ -253,15 +315,22 @@ export default function AgentHub() {
           {activeTab === 'chat' && (
             <div className={styles.chatPane}>
               <div className={styles.chatMessages}>
-                {messages.map((msg) => (
+                {chatLoading && (
+                  <div className={styles.chatLoadingMsg}>Loading conversation…</div>
+                )}
+                {!chatLoading && messages.map((msg) => (
                   <div
                     key={msg.id}
                     className={`${styles.msg} ${msg.role === 'user' ? styles.msgUser : styles.msgAgent}`}
                   >
-                    {msg.role === 'agent' && (
+                    {msg.role === 'assistant' && (
                       <span className={styles.msgName}>{msg.name}</span>
                     )}
-                    <div className={styles.msgBubble}>{msg.text}</div>
+                    <div className={`${styles.msgBubble} ${msg.isThinking ? styles.msgThinking : ''}`}>
+                      {msg.role === 'assistant'
+                        ? <ReactMarkdown>{msg.text}</ReactMarkdown>
+                        : msg.text}
+                    </div>
                   </div>
                 ))}
                 <div ref={scrollAnchorRef} />
@@ -270,12 +339,12 @@ export default function AgentHub() {
                 <input
                   className={styles.chatField}
                   type="text"
-                  placeholder="Message Master…"
+                  placeholder="Message Jarvis…"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleSend() }}
                 />
-                <button className={styles.sendBtn} onClick={handleSend}>
+                <button className={styles.sendBtn} onClick={handleSend} disabled={isLoading}>
                   <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
                     <path d="M10.894 2.553a1 1 0 0 0-1.788 0l-7 14a1 1 0 0 0 1.169 1.409l5-1.429A1 1 0 0 0 9 15.571V11a1 1 0 1 1 2 0v4.571a1 1 0 0 0 .725.962l5 1.428a1 1 0 0 0 1.17-1.408l-7-14z" />
                   </svg>
