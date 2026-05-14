@@ -5,6 +5,16 @@ import styles from './Sidebar.module.css'
 
 const nav = [
   {
+    to: '/agents',
+    label: 'Agent Hub',
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path d="M13 7H7v6h6V7z" />
+        <path fillRule="evenodd" d="M7 2a1 1 0 0 1 2 0v1h2V2a1 1 0 1 1 2 0v1h1a2 2 0 0 1 2 2v1h1a1 1 0 1 1 0 2h-1v2h1a1 1 0 1 1 0 2h-1v1a2 2 0 0 1-2 2h-1v1a1 1 0 1 1-2 0v-1H9v1a1 1 0 1 1-2 0v-1H6a2 2 0 0 1-2-2v-1H3a1 1 0 1 1 0-2h1V9H3a1 1 0 1 1 0-2h1V6a2 2 0 0 1 2-2h1V2zM6 6h8v8H6V6z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
     to: '/dashboard',
     label: 'Dashboard',
     icon: (

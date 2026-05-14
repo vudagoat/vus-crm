@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Layout from './components/Layout'
+import AgentHub from './pages/AgentHub'
 import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
 import Pipeline from './pages/Pipeline'
@@ -34,7 +35,8 @@ export default function App() {
             path="/"
             element={<AuthGuard><Layout /></AuthGuard>}
           >
-            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route index element={<Navigate to="/agents" replace />} />
+            <Route path="agents" element={<AgentHub />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="clients" element={<Clients />} />
             <Route path="pipeline" element={<Pipeline />} />
