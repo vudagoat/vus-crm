@@ -266,3 +266,49 @@
 .errorCell {
   color: var(--red);
 }
+
+.menuWrap {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 50;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  min-width: 130px;
+  overflow: hidden;
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font);
+  text-align: left;
+  transition: background 0.1s, color 0.1s;
+}
+
+.dropdownItem:hover {
+  background: var(--bg-overlay);
+  color: var(--text-primary);
+}
+
+.dropdownDanger:hover {
+  color: var(--red);
+  background: var(--red-dim);
+}

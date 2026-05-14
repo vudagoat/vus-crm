@@ -19,9 +19,7 @@ const AVATAR_COLORS = [
 ]
 
 const PROJECT_TYPES = ['Brand Identity', 'Web Design', 'E-commerce', 'Landing Page', 'Rebranding']
-
 const BLANK = { title: '', client: '', type: 'Web Design', value: '', stage: 'Lead', due_date: '' }
-
 const fmt = (n) => `$${n.toLocaleString()}`
 
 export default function Pipeline() {
@@ -29,9 +27,11 @@ export default function Pipeline() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showModal, setShowModal] = useState(false)
+  const [editingDeal, setEditingDeal] = useState(null)
   const [form, setForm] = useState(BLANK)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
+  const [activeMenu, setActiveMenu] = useState(null)
 
   const fetchDeals = useCallback(async () => {
     setLoading(true)
@@ -43,6 +43,12 @@ export default function Pipeline() {
 
   useEffect(() => { fetchDeals() }, [fetchDeals])
 
+  useEffect(() => {
+    const close = () => setActiveMenu(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [])
+
   const byStage = STAGES.reduce((acc, s) => {
     acc[s] = deals.filter((d) => d.stage === s)
     return acc
@@ -50,29 +56,71 @@ export default function Pipeline() {
 
   const totalValue = deals.reduce((s, d) => s + (d.value ?? 0), 0)
 
-  const openModal = () => { setForm(BLANK); setFormError(null); setShowModal(true) }
-  const closeModal = () => setShowModal(false)
+  const openAdd = () => { setEditingDeal(null); setForm(BLANK); setFormError(null); setShowModal(true) }
+
+  const openEdit = (deal) => {
+    setEditingDeal(deal)
+    setForm({
+      title: deal.title ?? '',
+      client: deal.client ?? '',
+      type: deal.type ?? 'Web Design',
+      value: deal.value ?? '',
+      stage: deal.stage ?? 'Lead',
+      due_date: deal.due_date ?? '',
+    })
+    setFormError(null)
+    setShowModal(true)
+    setActiveMenu(null)
+  }
+
+  const closeModal = () => { setShowModal(false); setEditingDeal(null) }
 
   const handleSave = async (e) => {
     e.preventDefault()
     setSaving(true)
     setFormError(null)
-    const words = form.client.trim().split(' ')
-    const avatar = words.map((w) => w[0]).slice(0, 2).join('').toUpperCase()
-    const avatar_color = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)]
-    const { error } = await supabase.from('deals').insert([{
-      title: form.title.trim(),
-      client: form.client.trim(),
-      type: form.type,
-      value: parseFloat(form.value) || 0,
-      stage: form.stage,
-      due_date: form.due_date || null,
-      avatar,
-      avatar_color,
-    }])
+
+    let payload
+    if (editingDeal) {
+      payload = {
+        title: form.title.trim(),
+        client: form.client.trim(),
+        type: form.type,
+        value: parseFloat(form.value) || 0,
+        stage: form.stage,
+        due_date: form.due_date || null,
+      }
+    } else {
+      const words = form.client.trim().split(' ')
+      const avatar = words.map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+      const avatar_color = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)]
+      payload = {
+        title: form.title.trim(),
+        client: form.client.trim(),
+        type: form.type,
+        value: parseFloat(form.value) || 0,
+        stage: form.stage,
+        due_date: form.due_date || null,
+        avatar,
+        avatar_color,
+      }
+    }
+
+    const { error } = editingDeal
+      ? await supabase.from('deals').update(payload).eq('id', editingDeal.id)
+      : await supabase.from('deals').insert([payload])
+
     setSaving(false)
     if (error) { setFormError(error.message); return }
     closeModal()
+    fetchDeals()
+  }
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this deal? This cannot be undone.')) return
+    setActiveMenu(null)
+    const { error } = await supabase.from('deals').delete().eq('id', id)
+    if (error) { alert(error.message); return }
     fetchDeals()
   }
 
@@ -87,7 +135,7 @@ export default function Pipeline() {
             {loading ? '…' : `${deals.length} deals · ${fmt(totalValue)} total value`}
           </p>
         </div>
-        <button className={styles.addBtn} onClick={openModal}>
+        <button className={styles.addBtn} onClick={openAdd}>
           <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
             <path fillRule="evenodd" d="M10 3a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H4a1 1 0 1 1 0-2h5V4a1 1 0 0 1 1-1z" clipRule="evenodd" />
           </svg>
@@ -124,25 +172,43 @@ export default function Pipeline() {
                         <div className={styles.dealTop}>
                           <div
                             className={styles.dealAvatar}
-                            style={{
-                              background: `${color}22`,
-                              color,
-                              borderColor: `${color}44`,
-                            }}
+                            style={{ background: `${color}22`, color, borderColor: `${color}44` }}
                           >
                             {deal.avatar}
                           </div>
                           <div className={styles.dealInfo}>
                             <span className={styles.dealClient}>{deal.title ?? deal.client}</span>
-                            <span className={styles.dealType}>{deal.client ? `${deal.client} · ${deal.type}` : deal.type}</span>
+                            <span className={styles.dealType}>
+                              {deal.client ? `${deal.client} · ${deal.type}` : deal.type}
+                            </span>
+                          </div>
+                          <div className={styles.cardMenu} onClick={(e) => e.stopPropagation()}>
+                            <button
+                              className={styles.cardMenuBtn}
+                              onClick={() => setActiveMenu(activeMenu === deal.id ? null : deal.id)}
+                              title="More options"
+                            >
+                              <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+                                <path d="M6 10a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm6 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 2a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
+                              </svg>
+                            </button>
+                            {activeMenu === deal.id && (
+                              <div className={styles.dropdown}>
+                                <button className={styles.dropdownItem} onClick={() => openEdit(deal)}>
+                                  <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path d="M13.586 3.586a2 2 0 1 1 2.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
+                                  Edit
+                                </button>
+                                <button className={`${styles.dropdownItem} ${styles.dropdownDanger}`} onClick={() => handleDelete(deal.id)}>
+                                  <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path fillRule="evenodd" d="M9 2a1 1 0 0 0-.894.553L7.382 4H4a1 1 0 0 0 0 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6a1 1 0 0 0 0-2h-3.382l-.724-1.447A1 1 0 0 0 11 2H9zM7 8a1 1 0 0 1 2 0v6a1 1 0 1 1-2 0V8zm4 0a1 1 0 0 1 2 0v6a1 1 0 1 1-2 0V8z" clipRule="evenodd" /></svg>
+                                  Delete
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className={styles.dealFooter}>
                           <span className={styles.dealValue}>{fmt(deal.value ?? 0)}</span>
-                          <span
-                            className={styles.dealStage}
-                            style={{ background: meta.dimColor, color: meta.color }}
-                          >
+                          <span className={styles.dealStage} style={{ background: meta.dimColor, color: meta.color }}>
                             {stage}
                           </span>
                         </div>
@@ -160,7 +226,7 @@ export default function Pipeline() {
       )}
 
       {showModal && (
-        <Modal title="Add Deal" onClose={closeModal}>
+        <Modal title={editingDeal ? 'Edit Deal' : 'Add Deal'} onClose={closeModal}>
           <form className={mStyles.form} onSubmit={handleSave}>
             <label className={mStyles.field}>
               Deal Title
@@ -196,7 +262,7 @@ export default function Pipeline() {
             <div className={mStyles.formFooter}>
               <button type="button" className={mStyles.cancelBtn} onClick={closeModal}>Cancel</button>
               <button type="submit" className={mStyles.submitBtn} disabled={saving}>
-                {saving ? 'Saving…' : 'Add Deal'}
+                {saving ? 'Saving…' : editingDeal ? 'Save Changes' : 'Add Deal'}
               </button>
             </div>
           </form>

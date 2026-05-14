@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import MetricCard from '../components/MetricCard'
 import RevenueLineChart from '../components/RevenueLineChart'
 import { supabase } from '../supabaseClient'
@@ -64,12 +65,6 @@ export default function Dashboard() {
           <h1 className={styles.title}>Welcome back, Aidan</h1>
           <p className={styles.subtitle}>{todayLabel}</p>
         </div>
-        <button className={styles.newBtn}>
-          <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-            <path fillRule="evenodd" d="M10 3a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H4a1 1 0 1 1 0-2h5V4a1 1 0 0 1 1-1z" clipRule="evenodd" />
-          </svg>
-          New Project
-        </button>
       </header>
 
       <div className={styles.metrics}>
@@ -128,7 +123,7 @@ export default function Dashboard() {
         <div className={styles.recentCard}>
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>Recent Clients</h2>
-            <a href="/clients" className={styles.viewAll}>View all →</a>
+            <Link to="/clients" className={styles.viewAll}>View all →</Link>
           </div>
 
           {loading ? (

@@ -56,8 +56,8 @@ export default function Sidebar() {
           </svg>
         </div>
         <div>
-          <span className={styles.brandName}>Vu's CRM</span>
-          <span className={styles.brandSub}>Design Business</span>
+          <span className={styles.brandName}>Vroom Digital</span>
+          <span className={styles.brandSub}>Vroom Digital</span>
         </div>
       </div>
 
