@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../supabaseClient'
 import Modal from '../components/Modal'
+import DropdownMenu, { DropdownItem } from '../components/DropdownMenu'
 import mStyles from '../components/Modal.module.css'
 import styles from './Invoices.module.css'
 
@@ -25,6 +26,7 @@ export default function Invoices() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
   const [activeMenu, setActiveMenu] = useState(null)
+  const [menuAnchor, setMenuAnchor] = useState(null)
   const fileInputRef = useRef(null)
 
   const fetchInvoices = useCallback(async () => {
@@ -40,11 +42,7 @@ export default function Invoices() {
 
   useEffect(() => { fetchInvoices() }, [fetchInvoices])
 
-  useEffect(() => {
-    const close = () => setActiveMenu(null)
-    document.addEventListener('click', close)
-    return () => document.removeEventListener('click', close)
-  }, [])
+  const closeMenu = () => { setActiveMenu(null); setMenuAnchor(null) }
 
   const total = (status) => invoices.filter((i) => i.status === status).reduce((s, i) => s + (i.amount ?? 0), 0)
   const totalAll = invoices.reduce((s, i) => s + (i.amount ?? 0), 0)
@@ -58,6 +56,7 @@ export default function Invoices() {
   }
 
   const openEdit = (inv) => {
+    closeMenu()
     setEditingInvoice(inv)
     setForm({
       client: inv.client ?? '',
@@ -70,7 +69,6 @@ export default function Invoices() {
     setFormError(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
     setShowModal(true)
-    setActiveMenu(null)
   }
 
   const closeModal = () => { setShowModal(false); setEditingInvoice(null) }
@@ -124,8 +122,8 @@ export default function Invoices() {
   }
 
   const handleDelete = async (id) => {
+    closeMenu()
     if (!window.confirm('Delete this invoice? This cannot be undone.')) return
-    setActiveMenu(null)
     const { error } = await supabase.from('invoices').delete().eq('id', id)
     if (error) { alert(error.message); return }
     fetchInvoices()
@@ -219,27 +217,30 @@ export default function Invoices() {
                           </svg>
                         </a>
                       )}
-                      <div className={styles.menuWrap} onClick={(e) => e.stopPropagation()}>
+                      <div className={styles.menuWrap}>
                         <button
                           className={styles.actionBtn}
                           title="More options"
-                          onClick={() => setActiveMenu(activeMenu === inv.id ? null : inv.id)}
+                          onClick={(e) => {
+                            activeMenu === inv.id ? closeMenu() : (setActiveMenu(inv.id), setMenuAnchor(e.currentTarget))
+                          }}
                         >
                           <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
                             <path d="M6 10a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm6 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 2a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
                           </svg>
                         </button>
                         {activeMenu === inv.id && (
-                          <div className={styles.dropdown}>
-                            <button className={styles.dropdownItem} onClick={() => openEdit(inv)}>
-                              <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path d="M13.586 3.586a2 2 0 1 1 2.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
-                              Edit
-                            </button>
-                            <button className={`${styles.dropdownItem} ${styles.dropdownDanger}`} onClick={() => handleDelete(inv.id)}>
-                              <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path fillRule="evenodd" d="M9 2a1 1 0 0 0-.894.553L7.382 4H4a1 1 0 0 0 0 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6a1 1 0 0 0 0-2h-3.382l-.724-1.447A1 1 0 0 0 11 2H9zM7 8a1 1 0 0 1 2 0v6a1 1 0 1 1-2 0V8zm4 0a1 1 0 0 1 2 0v6a1 1 0 1 1-2 0V8z" clipRule="evenodd" /></svg>
-                              Delete
-                            </button>
-                          </div>
+                          <DropdownMenu triggerEl={menuAnchor} onClose={closeMenu}>
+                            <DropdownItem
+                              icon={<svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path d="M13.586 3.586a2 2 0 1 1 2.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>}
+                              onClick={() => openEdit(inv)}
+                            >Edit</DropdownItem>
+                            <DropdownItem
+                              danger
+                              icon={<svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path fillRule="evenodd" d="M9 2a1 1 0 0 0-.894.553L7.382 4H4a1 1 0 0 0 0 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6a1 1 0 0 0 0-2h-3.382l-.724-1.447A1 1 0 0 0 11 2H9zM7 8a1 1 0 0 1 2 0v6a1 1 0 1 1-2 0V8zm4 0a1 1 0 0 1 2 0v6a1 1 0 1 1-2 0V8z" clipRule="evenodd" /></svg>}
+                              onClick={() => handleDelete(inv.id)}
+                            >Delete</DropdownItem>
+                          </DropdownMenu>
                         )}
                       </div>
                     </div>

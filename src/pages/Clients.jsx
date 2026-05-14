@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../supabaseClient'
 import Modal from '../components/Modal'
+import DropdownMenu, { DropdownItem } from '../components/DropdownMenu'
 import mStyles from '../components/Modal.module.css'
 import styles from './Clients.module.css'
 
@@ -20,6 +21,7 @@ export default function Clients() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
   const [activeMenu, setActiveMenu] = useState(null)
+  const [menuAnchor, setMenuAnchor] = useState(null)
 
   const fetchClients = useCallback(async () => {
     setLoading(true)
@@ -34,11 +36,7 @@ export default function Clients() {
 
   useEffect(() => { fetchClients() }, [fetchClients])
 
-  useEffect(() => {
-    const close = () => setActiveMenu(null)
-    document.addEventListener('click', close)
-    return () => document.removeEventListener('click', close)
-  }, [])
+  const closeMenu = () => { setActiveMenu(null); setMenuAnchor(null) }
 
   const filtered = clients.filter((c) => {
     const q = search.toLowerCase()
@@ -54,6 +52,7 @@ export default function Clients() {
   }
 
   const openEdit = (client) => {
+    closeMenu()
     setEditingClient(client)
     setForm({
       name: client.name ?? '',
@@ -64,7 +63,6 @@ export default function Clients() {
     })
     setFormError(null)
     setShowModal(true)
-    setActiveMenu(null)
   }
 
   const closeModal = () => { setShowModal(false); setEditingClient(null) }
@@ -90,8 +88,8 @@ export default function Clients() {
   }
 
   const handleDelete = async (id) => {
+    closeMenu()
     if (!window.confirm('Delete this client? This cannot be undone.')) return
-    setActiveMenu(null)
     const { error } = await supabase.from('clients').delete().eq('id', id)
     if (error) { alert(error.message); return }
     fetchClients()
@@ -180,27 +178,30 @@ export default function Clients() {
                   <span className={`${styles.badge} ${styles[c.status]}`}>{c.status}</span>
                 </td>
                 <td>
-                  <div className={styles.menuWrap} onClick={(e) => e.stopPropagation()}>
+                  <div className={styles.menuWrap}>
                     <button
                       className={styles.moreBtn}
                       title="More options"
-                      onClick={() => setActiveMenu(activeMenu === c.id ? null : c.id)}
+                      onClick={(e) => {
+                        activeMenu === c.id ? closeMenu() : (setActiveMenu(c.id), setMenuAnchor(e.currentTarget))
+                      }}
                     >
                       <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
                         <path d="M6 10a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm6 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 2a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
                       </svg>
                     </button>
                     {activeMenu === c.id && (
-                      <div className={styles.dropdown}>
-                        <button className={styles.dropdownItem} onClick={() => openEdit(c)}>
-                          <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path d="M13.586 3.586a2 2 0 1 1 2.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
-                          Edit
-                        </button>
-                        <button className={`${styles.dropdownItem} ${styles.dropdownDanger}`} onClick={() => handleDelete(c.id)}>
-                          <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path fillRule="evenodd" d="M9 2a1 1 0 0 0-.894.553L7.382 4H4a1 1 0 0 0 0 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6a1 1 0 0 0 0-2h-3.382l-.724-1.447A1 1 0 0 0 11 2H9zM7 8a1 1 0 0 1 2 0v6a1 1 0 1 1-2 0V8zm4 0a1 1 0 0 1 2 0v6a1 1 0 1 1-2 0V8z" clipRule="evenodd" /></svg>
-                          Delete
-                        </button>
-                      </div>
+                      <DropdownMenu triggerEl={menuAnchor} onClose={closeMenu}>
+                        <DropdownItem
+                          icon={<svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path d="M13.586 3.586a2 2 0 1 1 2.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>}
+                          onClick={() => openEdit(c)}
+                        >Edit</DropdownItem>
+                        <DropdownItem
+                          danger
+                          icon={<svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path fillRule="evenodd" d="M9 2a1 1 0 0 0-.894.553L7.382 4H4a1 1 0 0 0 0 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6a1 1 0 0 0 0-2h-3.382l-.724-1.447A1 1 0 0 0 11 2H9zM7 8a1 1 0 0 1 2 0v6a1 1 0 1 1-2 0V8zm4 0a1 1 0 0 1 2 0v6a1 1 0 1 1-2 0V8z" clipRule="evenodd" /></svg>}
+                          onClick={() => handleDelete(c.id)}
+                        >Delete</DropdownItem>
+                      </DropdownMenu>
                     )}
                   </div>
                 </td>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../supabaseClient'
 import Modal from '../components/Modal'
+import DropdownMenu, { DropdownItem } from '../components/DropdownMenu'
 import mStyles from '../components/Modal.module.css'
 import styles from './Pipeline.module.css'
 
@@ -32,6 +33,7 @@ export default function Pipeline() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
   const [activeMenu, setActiveMenu] = useState(null)
+  const [menuAnchor, setMenuAnchor] = useState(null)
 
   const fetchDeals = useCallback(async () => {
     setLoading(true)
@@ -43,11 +45,7 @@ export default function Pipeline() {
 
   useEffect(() => { fetchDeals() }, [fetchDeals])
 
-  useEffect(() => {
-    const close = () => setActiveMenu(null)
-    document.addEventListener('click', close)
-    return () => document.removeEventListener('click', close)
-  }, [])
+  const closeMenu = () => { setActiveMenu(null); setMenuAnchor(null) }
 
   const byStage = STAGES.reduce((acc, s) => {
     acc[s] = deals.filter((d) => d.stage === s)
@@ -59,6 +57,7 @@ export default function Pipeline() {
   const openAdd = () => { setEditingDeal(null); setForm(BLANK); setFormError(null); setShowModal(true) }
 
   const openEdit = (deal) => {
+    closeMenu()
     setEditingDeal(deal)
     setForm({
       title: deal.title ?? '',
@@ -70,7 +69,6 @@ export default function Pipeline() {
     })
     setFormError(null)
     setShowModal(true)
-    setActiveMenu(null)
   }
 
   const closeModal = () => { setShowModal(false); setEditingDeal(null) }
@@ -117,8 +115,8 @@ export default function Pipeline() {
   }
 
   const handleDelete = async (id) => {
+    closeMenu()
     if (!window.confirm('Delete this deal? This cannot be undone.')) return
-    setActiveMenu(null)
     const { error } = await supabase.from('deals').delete().eq('id', id)
     if (error) { alert(error.message); return }
     fetchDeals()
@@ -182,10 +180,12 @@ export default function Pipeline() {
                               {deal.client ? `${deal.client} · ${deal.type}` : deal.type}
                             </span>
                           </div>
-                          <div className={styles.cardMenu} onClick={(e) => e.stopPropagation()}>
+                          <div className={styles.cardMenu}>
                             <button
                               className={styles.cardMenuBtn}
-                              onClick={() => setActiveMenu(activeMenu === deal.id ? null : deal.id)}
+                              onClick={(e) => {
+                                activeMenu === deal.id ? closeMenu() : (setActiveMenu(deal.id), setMenuAnchor(e.currentTarget))
+                              }}
                               title="More options"
                             >
                               <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
@@ -193,16 +193,17 @@ export default function Pipeline() {
                               </svg>
                             </button>
                             {activeMenu === deal.id && (
-                              <div className={styles.dropdown}>
-                                <button className={styles.dropdownItem} onClick={() => openEdit(deal)}>
-                                  <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path d="M13.586 3.586a2 2 0 1 1 2.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
-                                  Edit
-                                </button>
-                                <button className={`${styles.dropdownItem} ${styles.dropdownDanger}`} onClick={() => handleDelete(deal.id)}>
-                                  <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path fillRule="evenodd" d="M9 2a1 1 0 0 0-.894.553L7.382 4H4a1 1 0 0 0 0 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6a1 1 0 0 0 0-2h-3.382l-.724-1.447A1 1 0 0 0 11 2H9zM7 8a1 1 0 0 1 2 0v6a1 1 0 1 1-2 0V8zm4 0a1 1 0 0 1 2 0v6a1 1 0 1 1-2 0V8z" clipRule="evenodd" /></svg>
-                                  Delete
-                                </button>
-                              </div>
+                              <DropdownMenu triggerEl={menuAnchor} onClose={closeMenu}>
+                                <DropdownItem
+                                  icon={<svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path d="M13.586 3.586a2 2 0 1 1 2.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>}
+                                  onClick={() => openEdit(deal)}
+                                >Edit</DropdownItem>
+                                <DropdownItem
+                                  danger
+                                  icon={<svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path fillRule="evenodd" d="M9 2a1 1 0 0 0-.894.553L7.382 4H4a1 1 0 0 0 0 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6a1 1 0 0 0 0-2h-3.382l-.724-1.447A1 1 0 0 0 11 2H9zM7 8a1 1 0 0 1 2 0v6a1 1 0 1 1-2 0V8zm4 0a1 1 0 0 1 2 0v6a1 1 0 1 1-2 0V8z" clipRule="evenodd" /></svg>}
+                                  onClick={() => handleDelete(deal.id)}
+                                >Delete</DropdownItem>
+                              </DropdownMenu>
                             )}
                           </div>
                         </div>

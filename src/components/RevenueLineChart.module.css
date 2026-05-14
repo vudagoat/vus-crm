@@ -8,7 +8,7 @@
   gap: 16px;
 }
 
-/* ── Top bar ──────────────────────────── */
+/* ── Top bar ── */
 .top {
   display: flex;
   align-items: flex-start;
@@ -39,7 +39,7 @@
   font-weight: 600;
 }
 
-.changeUp  { color: var(--green); }
+.changeUp   { color: var(--green); }
 .changeDown { color: var(--red); }
 
 .changeSub {
@@ -49,7 +49,7 @@
   margin-left: 2px;
 }
 
-/* ── Range controls ───────────────────── */
+/* ── Range controls ── */
 .controls {
   display: flex;
   align-items: center;
@@ -85,92 +85,7 @@
   border-color: rgba(34, 197, 94, 0.3);
 }
 
-/* ── Custom date picker ───────────────── */
-.pickerWrap {
-  position: relative;
-}
-
-.pickerDropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 200;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  box-shadow: var(--shadow-lg);
-  min-width: 240px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.pickerTitle {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.pickerFields {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.pickerLabel {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  cursor: default;
-}
-
-.pickerInput {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font-family: var(--font);
-  font-size: 13px;
-  padding: 7px 10px;
-  outline: none;
-  transition: border-color 0.15s;
-  color-scheme: dark;
-  width: 100%;
-}
-
-.pickerInput:focus {
-  border-color: var(--green);
-}
-
-.applyBtn {
-  padding: 8px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 600;
-  color: #fff;
-  background: var(--green);
-  border: none;
-  cursor: pointer;
-  transition: opacity 0.15s;
-  font-family: var(--font);
-}
-
-.applyBtn:hover:not(:disabled) {
-  opacity: 0.85;
-}
-
-.applyBtn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-/* ── Legend ──────────────────────────── */
+/* ── Legend ── */
 .legend {
   display: flex;
   align-items: center;
@@ -202,7 +117,36 @@
   flex-shrink: 0;
 }
 
-/* ── Tooltip ─────────────────────────── */
+/* ── Empty / loading state ── */
+.emptyState {
+  height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.emptyIcon {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.emptyTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.emptySub {
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 240px;
+  line-height: 1.5;
+}
+
+/* ── Tooltip ── */
 .tooltip {
   background: var(--bg-overlay);
   border: 1px solid var(--border);
